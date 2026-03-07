@@ -49,13 +49,10 @@ Rules:
 - Use bullet points and numbered lists for clarity
 - Do NOT make up prices or availability — direct users to the platform`;
 
-let genAI: GoogleGenerativeAI | null = null;
-
 function getGemini() {
-  if (!genAI && process.env.GEMINI_API_KEY) {
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  }
-  return genAI;
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  return new GoogleGenerativeAI(key);
 }
 
 export async function generateAIResponse(userMessage: string): Promise<string> {

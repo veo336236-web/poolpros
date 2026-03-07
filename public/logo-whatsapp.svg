@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0891B2"/>
+      <stop offset="100%" style="stop-color:#0D9488"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.95"/>
+      <stop offset="100%" style="stop-color:#E0F2FE;stop-opacity:0.95"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="80" cy="80" r="120" fill="white" opacity="0.06"/>
+  <circle cx="440" cy="440" r="140" fill="white" opacity="0.05"/>
+
+  <!-- Pool/water wave icon -->
+  <g transform="translate(256, 195)">
+    <!-- Wave 1 -->
+    <path d="M-100,0 Q-70,-35 -40,0 Q-10,35 20,0 Q50,-35 80,0 Q110,35 140,0"
+          fill="none" stroke="white" stroke-width="18" stroke-linecap="round" opacity="0.9"
+          transform="translate(-20, -20)"/>
+    <!-- Wave 2 -->
+    <path d="M-100,0 Q-70,-30 -40,0 Q-10,30 20,0 Q50,-30 80,0 Q110,30 140,0"
+          fill="none" stroke="white" stroke-width="14" stroke-linecap="round" opacity="0.5"
+          transform="translate(-20, 25)"/>
+  </g>
+
+  <!-- "PP" text -->
+  <text x="256" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="120" fill="white" letter-spacing="-4">
+    PP
+  </text>
+
+  <!-- "POOLPROS" text -->
+  <text x="256" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="38" fill="white" opacity="0.9" letter-spacing="8">
+    POOLPROS
+  </text>
+
+  <!-- "KUWAIT" subtitle -->
+  <text x="256" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-weight="500" font-size="24" fill="white" opacity="0.6" letter-spacing="12">
+    KUWAIT
+  </text>
+</svg>

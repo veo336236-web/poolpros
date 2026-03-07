@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  WHATSAPP_CONFIG,
   sendWhatsAppMessage,
   generateAIResponse,
   generateCallTwiML,
@@ -12,7 +11,9 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("hub.verify_token");
   const challenge = req.nextUrl.searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token === WHATSAPP_CONFIG.verifyToken) {
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || "poolpros_verify_2024";
+
+  if (mode === "subscribe" && token === verifyToken) {
     return new NextResponse(challenge, { status: 200 });
   }
 
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
       const formData = await req.formData();
       const from = formData.get("From") as string;
 
-      // Detect language from caller's country code
       const lang = from?.startsWith("+965") ? "ar" : "en";
       const twiml = generateCallTwiML(lang as "ar" | "en");
 
@@ -61,13 +61,20 @@ export async function POST(req: NextRequest) {
     // Generate AI response (Gemini)
     const reply = await generateAIResponse(messageText);
 
-    // Send reply via WhatsApp Cloud API
-    if (WHATSAPP_CONFIG.token && WHATSAPP_CONFIG.phoneId) {
-      await sendWhatsAppMessage(from, reply);
+    // Send reply via WhatsApp Cloud API — read env vars at runtime
+    const waToken = process.env.WHATSAPP_TOKEN;
+    const waPhoneId = process.env.WHATSAPP_PHONE_ID;
+
+    if (waToken && waPhoneId) {
+      const result = await sendWhatsAppMessage(from, reply);
+      console.log("WhatsApp send result:", JSON.stringify(result));
+    } else {
+      console.log("WhatsApp not configured:", { token: !!waToken, phoneId: !!waPhoneId });
     }
 
     return NextResponse.json({ status: "ok" });
-  } catch {
+  } catch (err) {
+    console.error("Webhook error:", err);
     return NextResponse.json({ status: "error" }, { status: 500 });
   }
 }

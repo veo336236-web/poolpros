@@ -98,12 +98,14 @@ function fallbackResponse(message: string): string {
 
 // ── Send WhatsApp message ───────────────────────────────────────
 export async function sendWhatsAppMessage(to: string, message: string) {
-  const url = `${WHATSAPP_CONFIG.apiUrl}/${WHATSAPP_CONFIG.phoneId}/messages`;
+  const phoneId = process.env.WHATSAPP_PHONE_ID || WHATSAPP_CONFIG.phoneId;
+  const token = process.env.WHATSAPP_TOKEN || WHATSAPP_CONFIG.token;
+  const url = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
 
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${WHATSAPP_CONFIG.token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

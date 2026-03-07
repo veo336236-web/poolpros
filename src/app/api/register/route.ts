@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,18 +13,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const registration = await prisma.businessRegistration.create({
-      data: {
-        businessName,
-        ownerName,
-        phone,
-        category,
-        governorate,
-        description: description || "",
-      },
-    });
+    const db = getDb();
+    const stmt = db.prepare(
+      `INSERT INTO BusinessRegistration (businessName, ownerName, phone, category, governorate, description)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    );
+    const result = stmt.run(businessName, ownerName, phone, category, governorate, description || "");
 
-    return NextResponse.json({ success: true, id: registration.id });
+    return NextResponse.json({ success: true, id: result.lastInsertRowid });
   } catch {
     return NextResponse.json(
       { error: "Failed to save registration" },
@@ -41,10 +37,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Missing id or status" }, { status: 400 });
     }
 
-    await prisma.businessRegistration.update({
-      where: { id },
-      data: { status },
-    });
+    const db = getDb();
+    db.prepare("UPDATE BusinessRegistration SET status = ? WHERE id = ?").run(status, id);
 
     return NextResponse.json({ success: true });
   } catch {
@@ -54,9 +48,8 @@ export async function PATCH(req: NextRequest) {
 
 export async function GET() {
   try {
-    const registrations = await prisma.businessRegistration.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const db = getDb();
+    const registrations = db.prepare("SELECT * FROM BusinessRegistration ORDER BY createdAt DESC").all();
     return NextResponse.json(registrations);
   } catch {
     return NextResponse.json(

@@ -80,6 +80,20 @@ function initTables(db: Database.Database) {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS BusinessRegistration (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      businessName TEXT NOT NULL,
+      ownerName TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      category TEXT NOT NULL,
+      governorate TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      status TEXT DEFAULT 'pending',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS Review (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       partnerId INTEGER NOT NULL,

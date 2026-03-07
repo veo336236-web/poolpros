@@ -16,7 +16,7 @@ export const WHATSAPP_CONFIG = {
   phoneId: process.env.WHATSAPP_PHONE_ID || "",
   verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "poolpros_verify_2024",
   number: process.env.WHATSAPP_NUMBER || "96594770839",
-  apiUrl: "https://graph.facebook.com/v18.0",
+  apiUrl: "https://graph.facebook.com/v22.0",
 };
 
 // ── Gemini AI ───────────────────────────────────────────────────
@@ -63,6 +63,7 @@ export async function generateAIResponse(userMessage: string): Promise<string> {
 
   // If Gemini is not configured, use fallback
   if (!ai) {
+    console.log("Gemini not configured, GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "SET" : "MISSING");
     return fallbackResponse(userMessage);
   }
 
@@ -83,7 +84,8 @@ export async function generateAIResponse(userMessage: string): Promise<string> {
     }
 
     return fallbackResponse(userMessage);
-  } catch {
+  } catch (err) {
+    console.error("Gemini error:", err);
     return fallbackResponse(userMessage);
   }
 }

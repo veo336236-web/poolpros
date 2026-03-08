@@ -58,9 +58,6 @@ export default function ProviderCard({ provider }: ProviderCardProps) {
                 {location}
               </div>
             </div>
-            <span className="text-lg font-bold text-cyan-600 whitespace-nowrap">
-              {provider.basePrice} {t("filter.kwd")}
-            </span>
           </div>
 
           {/* Rating */}

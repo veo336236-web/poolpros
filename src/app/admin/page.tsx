@@ -41,6 +41,7 @@ interface User {
   phone: string;
   role: string;
   businessName: string;
+  categories: string;
   createdAt: string;
 }
 
@@ -297,6 +298,15 @@ export default function AdminPage() {
                           {u.businessName && <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" />{u.businessName}</span>}
                           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatDate(u.createdAt)}</span>
                         </div>
+                        {u.categories && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {u.categories.split(",").map((cat: string) => (
+                              <span key={cat} className="px-2 py-0.5 text-xs font-medium rounded-full bg-cyan-50 text-cyan-700">
+                                {cat === "pool" ? "Pools" : cat === "fountain" ? "Fountains" : cat === "fish" ? "Fish Pools" : cat}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {/* Role dropdown */}

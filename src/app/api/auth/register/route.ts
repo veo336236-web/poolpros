@@ -3,7 +3,7 @@ import { createUser, getUserByPhone, createSession, safeUser } from "@/lib/auth"
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, phone, password, role, businessName } = await req.json();
+    const { name, phone, password, role, businessName, categories } = await req.json();
 
     if (!name || !phone || !password) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const validRole = role === "partner" ? "partner" : "customer";
-    const user = await createUser(name, phone, password, validRole, businessName || "");
+    const user = await createUser(name, phone, password, validRole, businessName || "", categories || "");
     const token = await createSession(user.id);
 
     const res = NextResponse.json({ success: true, user: safeUser(user) });

@@ -11,6 +11,8 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
 import { useLanguage, TranslationKey } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
@@ -32,6 +34,7 @@ export default function MyBookingsPage() {
   const router = useRouter();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState<number | null>(null);
 
   const BackArrow = lang === "ar" ? ArrowRight : ArrowLeft;
 
@@ -51,6 +54,25 @@ export default function MyBookingsPage() {
         });
     }
   }, [user]);
+
+  const handlePay = async (bookingId: number) => {
+    setPayingId(bookingId);
+    try {
+      const res = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, amount: 5 }), // Default service fee 5 KWD
+      });
+      const data = await res.json();
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   const handleCancel = async (bookingId: number) => {
     try {
@@ -179,14 +201,30 @@ export default function MyBookingsPage() {
                       </div>
                     )}
 
-                    {booking.status === "pending" && (
-                      <button
-                        onClick={() => handleCancel(booking.id)}
-                        className="mt-3 px-4 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-all"
-                      >
-                        {t("booking.cancelled") === "ملغي" ? "إلغاء الطلب" : "Cancel Request"}
-                      </button>
-                    )}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {booking.status === "confirmed" && (
+                        <button
+                          onClick={() => handlePay(booking.id)}
+                          disabled={payingId === booking.id}
+                          className="px-4 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-lg hover:shadow-lg transition-all flex items-center gap-1.5 disabled:opacity-60"
+                        >
+                          {payingId === booking.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <CreditCard className="w-3.5 h-3.5" />
+                          )}
+                          {lang === "ar" ? "ادفع الآن" : "Pay Now"}
+                        </button>
+                      )}
+                      {booking.status === "pending" && (
+                        <button
+                          onClick={() => handleCancel(booking.id)}
+                          className="px-4 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg transition-all"
+                        >
+                          {lang === "ar" ? "إلغاء الطلب" : "Cancel Request"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -8,6 +8,7 @@ export interface AuthUser {
   phone: string;
   role: "customer" | "partner" | "admin";
   businessName: string;
+  categories: string;
   createdAt: string;
 }
 
@@ -21,6 +22,7 @@ interface AuthContextType {
     password: string;
     role?: string;
     businessName?: string;
+    categories?: string;
   }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -72,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string;
     role?: string;
     businessName?: string;
+    categories?: string;
   }) => {
     try {
       const res = await fetch("/api/auth/register", {

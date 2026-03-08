@@ -10,6 +10,7 @@ export interface UserRow {
   salt: string;
   role: "customer" | "partner" | "admin";
   businessName: string;
+  categories: string;
   createdAt: string;
 }
 
@@ -29,15 +30,16 @@ export async function createUser(
   phone: string,
   password: string,
   role: "customer" | "partner" = "customer",
-  businessName = ""
+  businessName = "",
+  categories = ""
 ): Promise<UserRow> {
   const db = await ensureDb();
   const salt = crypto.randomBytes(16).toString("hex");
   const passwordHash = hashPassword(password, salt);
 
   const result = await db.execute({
-    sql: `INSERT INTO User (name, phone, passwordHash, salt, role, businessName) VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [name, phone, passwordHash, salt, role, businessName],
+    sql: `INSERT INTO User (name, phone, passwordHash, salt, role, businessName, categories) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [name, phone, passwordHash, salt, role, businessName, categories],
   });
 
   const row = await db.execute({
@@ -150,6 +152,7 @@ export function safeUser(user: UserRow) {
     phone: user.phone,
     role: user.role,
     businessName: user.businessName,
+    categories: user.categories || "",
     createdAt: user.createdAt,
   };
 }

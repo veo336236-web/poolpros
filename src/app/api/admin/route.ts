@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
     if (section === "users") {
       const result = await db.execute(
-        "SELECT id, name, phone, role, businessName, createdAt FROM User ORDER BY createdAt DESC"
+        "SELECT id, name, phone, role, businessName, categories, createdAt FROM User ORDER BY createdAt DESC"
       );
       return NextResponse.json(result.rows);
     }

@@ -26,6 +26,7 @@ export async function ensureDb(): Promise<Client> {
         salt TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'customer',
         businessName TEXT DEFAULT '',
+        categories TEXT DEFAULT '',
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -125,6 +126,22 @@ export async function ensureDb(): Promise<Client> {
         phone TEXT PRIMARY KEY,
         code TEXT NOT NULL,
         expiresAt DATETIME NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS Payment (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bookingId INTEGER NOT NULL,
+        customerId INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        currency TEXT DEFAULT 'KWD',
+        status TEXT DEFAULT 'pending',
+        method TEXT DEFAULT '',
+        transactionId TEXT DEFAULT '',
+        tapChargeId TEXT DEFAULT '',
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (bookingId) REFERENCES Booking(id),
+        FOREIGN KEY (customerId) REFERENCES User(id)
       );
     `);
     _initialized = true;

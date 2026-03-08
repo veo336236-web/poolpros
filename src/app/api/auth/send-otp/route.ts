@@ -30,6 +30,13 @@ export async function POST(req: NextRequest) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     await storeOtp(phone, code);
 
+    // Skip OTP entirely when ENABLE_OTP is not set to "true"
+    // This allows registration without WhatsApp verification
+    if (process.env.ENABLE_OTP !== "true") {
+      console.log("OTP disabled, skipping for:", phone);
+      return NextResponse.json({ success: true, skipOtp: true });
+    }
+
     // Send via WhatsApp
     const waToken = process.env.WHATSAPP_TOKEN;
     const waPhoneId = process.env.WHATSAPP_PHONE_ID;
@@ -43,10 +50,11 @@ export async function POST(req: NextRequest) {
 
       if (result?.error) {
         console.error("WhatsApp OTP send error:", result.error);
+        // If WhatsApp fails, skip OTP so user can still register
+        return NextResponse.json({ success: true, skipOtp: true });
       }
       return NextResponse.json({ success: true });
     } else {
-      // WhatsApp not configured — skip OTP, auto-verify
       console.log("WhatsApp not configured, skipping OTP for:", phone);
       return NextResponse.json({ success: true, skipOtp: true });
     }

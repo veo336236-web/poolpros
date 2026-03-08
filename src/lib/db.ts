@@ -144,6 +144,19 @@ export async function ensureDb(): Promise<Client> {
         FOREIGN KEY (customerId) REFERENCES User(id)
       );
     `);
+
+    // Migrations: add columns that may not exist in older databases
+    const migrations = [
+      "ALTER TABLE User ADD COLUMN categories TEXT DEFAULT ''",
+    ];
+    for (const sql of migrations) {
+      try {
+        await client.execute(sql);
+      } catch {
+        // Column already exists — ignore
+      }
+    }
+
     _initialized = true;
   }
   return client;

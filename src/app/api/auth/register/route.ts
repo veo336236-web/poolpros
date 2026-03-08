@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
       maxAge: 30 * 24 * 60 * 60,
     });
     return res;
-  } catch {
-    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
+  } catch (err) {
+    console.error("Registration error:", err);
+    return NextResponse.json({ error: "Registration failed", details: String(err) }, { status: 500 });
   }
 }

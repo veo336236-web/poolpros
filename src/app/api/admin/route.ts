@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import crypto from "crypto";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -66,6 +67,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(result.rows);
     }
 
+    if (section === "products") {
+      const result = await db.execute(
+        `SELECT pp.*, u.name as partnerName, u.businessName
+         FROM PartnerProduct pp
+         LEFT JOIN User u ON pp.userId = u.id
+         ORDER BY pp.createdAt DESC`
+      );
+      return NextResponse.json(result.rows);
+    }
+
     return NextResponse.json({ error: "Invalid section" }, { status: 400 });
   } catch (err) {
     console.error("Admin GET error:", err);
@@ -113,6 +124,19 @@ export async function PATCH(req: NextRequest) {
       await db.execute({
         sql: "UPDATE Booking SET status = ?, updatedAt = datetime('now') WHERE id = ?",
         args: [value, id],
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "resetPassword") {
+      if (!value || value.length < 6) {
+        return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      }
+      const salt = crypto.randomBytes(16).toString("hex");
+      const passwordHash = crypto.pbkdf2Sync(value, salt, 10000, 64, "sha512").toString("hex");
+      await db.execute({
+        sql: "UPDATE User SET passwordHash = ?, salt = ? WHERE id = ?",
+        args: [passwordHash, salt, id],
       });
       return NextResponse.json({ success: true });
     }

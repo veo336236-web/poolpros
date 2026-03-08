@@ -25,6 +25,8 @@ import {
   Sparkles,
   Fish,
   Store,
+  KeyRound,
+  Package,
 } from "lucide-react";
 import { providers, services } from "@/lib/data";
 
@@ -78,7 +80,20 @@ interface Registration {
   createdAt: string;
 }
 
-type Tab = "stats" | "users" | "bookings" | "registrations" | "providers";
+interface Product {
+  id: number;
+  userId: number;
+  title: string;
+  description: string;
+  category: string;
+  price: string;
+  image: string;
+  partnerName: string;
+  businessName: string;
+  createdAt: string;
+}
+
+type Tab = "stats" | "users" | "bookings" | "registrations" | "providers" | "products";
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -89,7 +104,10 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [roleDropdown, setRoleDropdown] = useState<number | null>(null);
+  const [passwordModal, setPasswordModal] = useState<{ id: number; name: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -111,6 +129,7 @@ export default function AdminPage() {
       else if (section === "users") setUsers(data);
       else if (section === "bookings") setBookings(data);
       else if (section === "registrations") setRegistrations(data);
+      else if (section === "products") setProducts(data);
     } catch (err) {
       console.error("Admin fetch error:", err);
     } finally {
@@ -151,6 +170,7 @@ export default function AdminPage() {
     { key: "stats", label: "Overview", icon: <BarChart3 className="w-4 h-4" /> },
     { key: "providers", label: "Providers", icon: <Store className="w-4 h-4" /> },
     { key: "users", label: "Users", icon: <Users className="w-4 h-4" /> },
+    { key: "products", label: "Products", icon: <Package className="w-4 h-4" /> },
     { key: "bookings", label: "Bookings", icon: <CalendarCheck className="w-4 h-4" /> },
     { key: "registrations", label: "Registrations", icon: <Building2 className="w-4 h-4" /> },
   ];
@@ -344,12 +364,20 @@ export default function AdminPage() {
                           )}
                         </div>
                         <button
+                          onClick={() => { setPasswordModal({ id: u.id, name: u.name }); setNewPassword(""); }}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-600 bg-amber-50 rounded-xl hover:bg-amber-100 transition-all"
+                          title="Reset Password"
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => {
                             if (confirm(`Delete user "${u.name}"? This will remove all their data.`)) {
                               adminAction("deleteUser", u.id, "");
                             }
                           }}
                           className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-xl hover:bg-red-100 transition-all"
+                          title="Delete User"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -525,9 +553,82 @@ export default function AdminPage() {
                 )}
               </div>
             )}
+            {/* Products Tab */}
+            {tab === "products" && (
+              <div className="space-y-4">
+                <div className="text-sm text-gray-500 mb-2">{products.length} products total</div>
+                {products.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">No products yet.</p>
+                    <p className="text-xs text-gray-400 mt-1">Partners can add products from their dashboard.</p>
+                  </div>
+                ) : (
+                  products.map((p) => (
+                    <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                      <div className="flex items-start gap-4">
+                        {p.image ? (
+                          <img src={p.image} alt={p.title} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-bold text-gray-900">{p.title}</h3>
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mt-1">
+                            <span className="bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full text-xs font-medium">{p.category}</span>
+                            {p.price && <span className="font-medium text-gray-700">{p.price} KWD</span>}
+                            <span className="text-gray-400">by {p.businessName || p.partnerName}</span>
+                          </div>
+                          {p.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{p.description}</p>}
+                          <span className="text-xs text-gray-400 mt-2 block"><Clock className="w-3 h-3 inline -mt-0.5 me-1" />{formatDate(p.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
+
+      {/* Password Reset Modal */}
+      {passwordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Reset Password</h3>
+            <p className="text-sm text-gray-500 mb-4">Set new password for <strong>{passwordModal.name}</strong></p>
+            <input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password (min 6 chars)"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  if (newPassword.length < 6) { alert("Password must be at least 6 characters"); return; }
+                  await adminAction("resetPassword", passwordModal.id, newPassword);
+                  setPasswordModal(null);
+                  alert("Password reset successfully!");
+                }}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-all"
+              >
+                Reset Password
+              </button>
+              <button
+                onClick={() => setPasswordModal(null)}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

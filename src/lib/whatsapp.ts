@@ -110,6 +110,8 @@ export async function sendWhatsAppMessage(to: string, message: string) {
   const token = process.env.WHATSAPP_TOKEN || WHATSAPP_CONFIG.token;
   const url = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
 
+  console.log(`[WhatsApp] Sending to: ${to}, phoneId: ${phoneId ? phoneId.slice(0, 6) + "..." : "MISSING"}, token: ${token ? "SET" : "MISSING"}`);
+
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -124,7 +126,63 @@ export async function sendWhatsAppMessage(to: string, message: string) {
     }),
   });
 
-  return res.json();
+  const data = await res.json();
+  console.log(`[WhatsApp] Response status: ${res.status}, body:`, JSON.stringify(data));
+  return data;
+}
+
+// ── Send OTP via WhatsApp (tries template first, then text) ─────
+export async function sendWhatsAppOTP(to: string, code: string) {
+  const phoneId = process.env.WHATSAPP_PHONE_ID || WHATSAPP_CONFIG.phoneId;
+  const token = process.env.WHATSAPP_TOKEN || WHATSAPP_CONFIG.token;
+  const url = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
+  const templateName = process.env.WHATSAPP_OTP_TEMPLATE || "";
+
+  console.log(`[WhatsApp OTP] Sending OTP to: ${to}, template: ${templateName || "none (text mode)"}`);
+
+  // If a template name is configured, use template-based OTP
+  if (templateName) {
+    const templateBody = {
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: "ar" },
+        components: [
+          {
+            type: "body",
+            parameters: [{ type: "text", text: code }],
+          },
+          {
+            type: "button",
+            sub_type: "url",
+            index: "0",
+            parameters: [{ type: "text", text: code }],
+          },
+        ],
+      },
+    };
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(templateBody),
+    });
+
+    const data = await res.json();
+    console.log(`[WhatsApp OTP] Template response:`, JSON.stringify(data));
+
+    if (!data.error) return data;
+    console.error(`[WhatsApp OTP] Template failed, falling back to text`);
+  }
+
+  // Fallback: send as plain text message
+  const message = `PoolPros - رمز التحقق: *${code}*\n\nينتهي خلال 5 دقائق.\nVerification code: *${code}*`;
+  return sendWhatsAppMessage(to, message);
 }
 
 // ── Twilio: Generate TwiML for AI voice call ────────────────────

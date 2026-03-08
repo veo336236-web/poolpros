@@ -56,17 +56,12 @@ export default function RegisterPage() {
     const data = await res.json();
 
     if (data.success) {
-      if (data.skipOtp) {
-        // WhatsApp not configured — register directly without OTP
-        await doRegister();
-      } else {
-        setStep("otp");
-      }
+      setStep("otp");
     } else {
       setError(
         data.error === "Phone already registered"
           ? t("auth.phoneExists")
-          : data.error || ""
+          : data.error || (lang === "ar" ? "فشل إرسال رمز التحقق" : "Failed to send verification code")
       );
     }
     setLoading(false);

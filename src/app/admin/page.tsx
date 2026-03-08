@@ -83,19 +83,6 @@ interface Registration {
   createdAt: string;
 }
 
-interface Product {
-  id: number;
-  userId: number;
-  title: string;
-  description: string;
-  category: string;
-  price: string;
-  image: string;
-  partnerName: string;
-  businessName: string;
-  createdAt: string;
-}
-
 interface ProviderProduct {
   id: number;
   userId: number;
@@ -136,7 +123,7 @@ interface DbProvider {
   bookings: ProviderBooking[];
 }
 
-type Tab = "stats" | "users" | "bookings" | "registrations" | "providers" | "products";
+type Tab = "stats" | "users" | "bookings" | "registrations" | "providers";
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -147,15 +134,15 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [dbProviders, setDbProviders] = useState<DbProvider[]>([]);
   const [roleDropdown, setRoleDropdown] = useState<number | null>(null);
   const [passwordModal, setPasswordModal] = useState<{ id: number; name: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [editProvider, setEditProvider] = useState<DbProvider | null>(null);
-  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [expandedProvider, setExpandedProvider] = useState<number | null>(null);
   const [editProviderProduct, setEditProviderProduct] = useState<ProviderProduct | null>(null);
+  const [addProductModal, setAddProductModal] = useState<{ userId: number; businessName: string } | null>(null);
+  const [newProduct, setNewProduct] = useState({ title: "", description: "", category: "pool", price: "" });
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -173,7 +160,6 @@ export default function AdminPage() {
       else if (section === "users") setUsers(data);
       else if (section === "bookings") setBookings(data);
       else if (section === "registrations") setRegistrations(data);
-      else if (section === "products") setProducts(data);
       else if (section === "providers") setDbProviders(data);
     } catch (err) {
       console.error("Admin fetch error:", err);
@@ -230,7 +216,6 @@ export default function AdminPage() {
     { key: "stats", label: "Overview", icon: <BarChart3 className="w-4 h-4" /> },
     { key: "providers", label: "Providers", icon: <Store className="w-4 h-4" /> },
     { key: "users", label: "Users", icon: <Users className="w-4 h-4" /> },
-    { key: "products", label: "Products", icon: <Package className="w-4 h-4" /> },
     { key: "bookings", label: "Bookings", icon: <CalendarCheck className="w-4 h-4" /> },
     { key: "registrations", label: "Registrations", icon: <Building2 className="w-4 h-4" /> },
   ];
@@ -599,10 +584,18 @@ export default function AdminPage() {
                             <div className="border-t border-gray-100 bg-gray-50/50">
                               {/* Products Section */}
                               <div className="p-5">
-                                <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                  <Package className="w-4 h-4 text-cyan-600" />
-                                  Products ({provProducts.length})
-                                </h4>
+                                <div className="flex items-center justify-between mb-3">
+                                  <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                    <Package className="w-4 h-4 text-cyan-600" />
+                                    Products ({provProducts.length})
+                                  </h4>
+                                  <button
+                                    onClick={() => { setAddProductModal({ userId: p.id, businessName: p.businessName || p.name }); setNewProduct({ title: "", description: "", category: p.categories?.split(",")[0] || "pool", price: "" }); }}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 transition-all"
+                                  >
+                                    + Add Product
+                                  </button>
+                                </div>
                                 {provProducts.length === 0 ? (
                                   <p className="text-xs text-gray-400 italic">No products added yet.</p>
                                 ) : (
@@ -800,61 +793,7 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* Products Tab — with Edit & Delete */}
-            {tab === "products" && (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-500 mb-2">{products.length} products total</div>
-                {products.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No products yet.</p>
-                    <p className="text-xs text-gray-400 mt-1">Partners can add products from their dashboard.</p>
-                  </div>
-                ) : (
-                  products.map((p) => (
-                    <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5">
-                      <div className="flex items-start gap-4">
-                        {p.image ? (
-                          <img src={p.image} alt={p.title} className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                        ) : (
-                          <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                            <Package className="w-6 h-6 text-gray-400" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-bold text-gray-900">{p.title}</h3>
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mt-1">
-                            <span className="bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full text-xs font-medium">{p.category}</span>
-                            {p.price && <span className="font-medium text-gray-700">{p.price} KWD</span>}
-                            <span className="text-gray-400">by {p.businessName || p.partnerName}</span>
-                          </div>
-                          {p.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{p.description}</p>}
-                          <span className="text-xs text-gray-400 mt-2 block"><Clock className="w-3 h-3 inline -mt-0.5 me-1" />{formatDate(p.createdAt)}</span>
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                          <button
-                            onClick={() => setEditProduct({ ...p })}
-                            className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Delete product "${p.title}"?`)) {
-                                adminAction("deleteProduct", p.id, "");
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-xl hover:bg-red-100 transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            {/* Products tab removed — products are now shown under each provider */}
           </>
         )}
       </div>
@@ -1065,29 +1004,34 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Edit Product Modal */}
-      {editProduct && (
+      {/* Add Product Modal */}
+      {addProductModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Edit Product</h3>
-              <button onClick={() => setEditProduct(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Add Product</h3>
+                <p className="text-xs text-gray-500">For: {addProductModal.businessName}</p>
+              </div>
+              <button onClick={() => setAddProductModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Title</label>
-                <input type="text" value={editProduct.title} onChange={(e) => setEditProduct({ ...editProduct, title: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                <label className="block text-xs font-medium text-gray-500 mb-1">Title *</label>
+                <input type="text" value={newProduct.title} onChange={(e) => setNewProduct({ ...newProduct, title: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Product name" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
-                <textarea value={editProduct.description} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows={3} />
+                <textarea value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows={3}
+                  placeholder="Product description" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-                  <select value={editProduct.category} onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })}
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Category *</label>
+                  <select value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm">
                     <option value="pool">Pools</option>
                     <option value="fountain">Fountains</option>
@@ -1096,30 +1040,32 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Price (KWD)</label>
-                  <input type="text" value={editProduct.price} onChange={(e) => setEditProduct({ ...editProduct, price: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                  <input type="text" value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="e.g., 50" />
                 </div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={async () => {
+                  if (!newProduct.title.trim()) { alert("Title is required"); return; }
                   await adminActionObj({
-                    action: "updateProduct",
-                    id: editProduct.id,
-                    title: editProduct.title,
-                    description: editProduct.description,
-                    category: editProduct.category,
-                    price: editProduct.price,
+                    action: "addProduct",
+                    id: addProductModal.userId,
+                    title: newProduct.title,
+                    description: newProduct.description,
+                    category: newProduct.category,
+                    price: newProduct.price,
                   });
-                  setEditProduct(null);
-                  alert("Product updated!");
+                  setAddProductModal(null);
+                  alert("Product added!");
                 }}
-                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-all"
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-cyan-600 rounded-xl hover:bg-cyan-700 transition-all"
               >
-                <Save className="w-4 h-4" /> Save
+                <Package className="w-4 h-4" /> Add Product
               </button>
-              <button onClick={() => setEditProduct(null)}
+              <button onClick={() => setAddProductModal(null)}
                 className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all">
                 Cancel
               </button>

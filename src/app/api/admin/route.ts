@@ -200,6 +200,18 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === "addProduct") {
+      const { title, description: prodDesc, category, price } = body;
+      if (!title) {
+        return NextResponse.json({ error: "Title required" }, { status: 400 });
+      }
+      await db.execute({
+        sql: "INSERT INTO PartnerProduct (userId, title, description, category, price) VALUES (?, ?, ?, ?, ?)",
+        args: [id, title, prodDesc || "", category || "pool", price || ""],
+      });
+      return NextResponse.json({ success: true });
+    }
+
     if (action === "deleteProduct") {
       await db.execute({
         sql: "DELETE FROM PartnerProduct WHERE id = ?",

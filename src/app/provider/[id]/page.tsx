@@ -144,9 +144,18 @@ export default function ProviderPage() {
                   <span className="text-lg font-bold text-cyan-600">
                     {lang === "ar" ? service.priceDisplayAr : service.priceDisplay}
                   </span>
-                  <button className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-lg hover:shadow-md hover:shadow-cyan-500/25 active:scale-[0.97] transition-all whitespace-nowrap">
+                  <a
+                    href={`https://wa.me/${provider.whatsappNumber}?text=${encodeURIComponent(
+                      lang === "ar"
+                        ? `مرحباً، أريد حجز خدمة: ${service.nameAr} من ${provider.nameAr || provider.name}`
+                        : `Hi, I'd like to book: ${service.name} from ${provider.name}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-lg hover:shadow-md hover:shadow-cyan-500/25 active:scale-[0.97] transition-all whitespace-nowrap text-center"
+                  >
                     {t("provider.bookNow")}
-                  </button>
+                  </a>
                 </div>
               </div>
             ))}

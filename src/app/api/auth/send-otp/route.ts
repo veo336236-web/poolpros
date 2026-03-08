@@ -44,11 +44,12 @@ export async function POST(req: NextRequest) {
       if (result?.error) {
         console.error("WhatsApp OTP send error:", result.error);
       }
+      return NextResponse.json({ success: true });
     } else {
-      console.log("WhatsApp not configured for OTP. Code:", code);
+      // WhatsApp not configured — skip OTP, auto-verify
+      console.log("WhatsApp not configured, skipping OTP for:", phone);
+      return NextResponse.json({ success: true, skipOtp: true });
     }
-
-    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Send OTP error:", err);
     return NextResponse.json({ error: "Failed to send OTP" }, { status: 500 });

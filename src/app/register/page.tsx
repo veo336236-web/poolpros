@@ -56,12 +56,40 @@ export default function RegisterPage() {
     const data = await res.json();
 
     if (data.success) {
-      setStep("otp");
+      if (data.skipOtp) {
+        // WhatsApp not configured — register directly without OTP
+        await doRegister();
+      } else {
+        setStep("otp");
+      }
     } else {
       setError(
         data.error === "Phone already registered"
           ? t("auth.phoneExists")
           : data.error || ""
+      );
+    }
+    setLoading(false);
+  };
+
+  const doRegister = async () => {
+    setLoading(true);
+    const result = await register({
+      name: form.name,
+      phone: form.phone,
+      password: form.password,
+      role: form.role,
+      businessName: form.businessName,
+      categories: form.categories.join(","),
+    });
+
+    if (result.success) {
+      router.push(form.role === "partner" ? "/dashboard" : "/");
+    } else {
+      setError(
+        result.error === "Phone number already registered"
+          ? t("auth.phoneExists")
+          : result.error || ""
       );
     }
     setLoading(false);
@@ -91,25 +119,7 @@ export default function RegisterPage() {
     }
 
     // OTP verified — register account
-    const result = await register({
-      name: form.name,
-      phone: form.phone,
-      password: form.password,
-      role: form.role,
-      businessName: form.businessName,
-      categories: form.categories.join(","),
-    });
-
-    if (result.success) {
-      router.push(form.role === "partner" ? "/dashboard" : "/");
-    } else {
-      setError(
-        result.error === "Phone number already registered"
-          ? t("auth.phoneExists")
-          : result.error || ""
-      );
-    }
-    setLoading(false);
+    await doRegister();
   };
 
   const resendOtp = async () => {

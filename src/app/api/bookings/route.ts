@@ -83,11 +83,12 @@ export async function POST(req: NextRequest) {
     );
 
     // Send WhatsApp notification to provider (your number)
+    const bookingId = result.lastInsertRowid;
     try {
       const providerPhone = "96594770839";
       await sendWhatsAppMessage(
         providerPhone,
-        `📋 طلب حجز جديد!\n\n👤 العميل: ${user.name}\n📱 الهاتف: ${user.phone}\n🔧 الخدمة: ${serviceName}\n📅 التاريخ: ${preferredDate || "غير محدد"}\n📝 ملاحظات: ${notes || "لا يوجد"}\n\nقم بزيارة لوحة التحكم للموافقة أو الرفض.`
+        `📋 طلب حجز جديد #${bookingId}\n\n👤 العميل: ${user.name}\n📱 الهاتف: +965${user.phone}\n🔧 الخدمة: ${serviceName}\n📅 التاريخ: ${preferredDate || "غير محدد"}\n📝 ملاحظات: ${notes || "لا يوجد"}\n\n━━━━━━━━━━\n✅ للقبول أرسل: قبول ${bookingId}\n❌ للرفض أرسل: رفض ${bookingId} السبب\n📋 عرض الكل: حجوزات`
       );
     } catch (e) {
       console.error("WhatsApp notification error:", e);

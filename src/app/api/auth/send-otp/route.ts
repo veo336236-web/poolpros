@@ -35,14 +35,23 @@ export async function POST(req: NextRequest) {
     const waPhoneId = process.env.WHATSAPP_PHONE_ID;
 
     if (waToken && waPhoneId) {
-      await sendWhatsAppMessage(
+      const result = await sendWhatsAppMessage(
         phone,
         `PoolPros - Your verification code is: *${code}*\n\nThis code expires in 5 minutes.\n\nرمز التحقق الخاص بك: *${code}*\nينتهي خلال 5 دقائق.`
       );
+      console.log("OTP WhatsApp result:", JSON.stringify(result));
+
+      if (result?.error) {
+        console.error("WhatsApp OTP send error:", result.error);
+        // Still return success — OTP is stored, user can request resend
+      }
+    } else {
+      console.log("WhatsApp not configured for OTP. Code:", code);
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error("Send OTP error:", err);
     return NextResponse.json({ error: "Failed to send OTP" }, { status: 500 });
   }
 }

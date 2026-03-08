@@ -1,7 +1,11 @@
 import Database from "better-sqlite3";
 import path from "path";
 
-const dbPath = path.join(process.cwd(), "prisma", "dev.db");
+// On Vercel, use /tmp (only writable dir). Locally, use prisma/dev.db.
+const isVercel = !!process.env.VERCEL;
+const dbPath = isVercel
+  ? "/tmp/poolpros.db"
+  : path.join(process.cwd(), "prisma", "dev.db");
 
 let _db: Database.Database | null = null;
 

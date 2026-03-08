@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Waves, Menu, X, Globe, LogOut, LayoutDashboard, ClipboardList, LogIn, CalendarCheck } from "lucide-react";
+import { Waves, Menu, X, Globe, LogOut, LayoutDashboard, ClipboardList, LogIn, CalendarCheck, Shield } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 
@@ -99,6 +99,16 @@ export default function Navbar() {
                         {t("partner.dashboard")}
                       </Link>
                     )}
+                    {user.role === "admin" && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-purple-700 hover:bg-purple-50 transition-all"
+                      >
+                        <Shield className="w-4 h-4" />
+                        Admin Panel
+                      </Link>
+                    )}
                     <Link
                       href="/my-bookings"
                       onClick={() => setProfileOpen(false)}
@@ -187,6 +197,12 @@ export default function Navbar() {
                     <Link href="/dashboard" className="px-3 py-2.5 text-sm font-medium text-gray-600 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-all flex items-center gap-2" onClick={() => setMenuOpen(false)}>
                       <LayoutDashboard className="w-4 h-4" />
                       {t("partner.dashboard")}
+                    </Link>
+                  )}
+                  {user.role === "admin" && (
+                    <Link href="/admin" className="px-3 py-2.5 text-sm font-medium text-purple-700 hover:bg-purple-50 rounded-xl transition-all flex items-center gap-2" onClick={() => setMenuOpen(false)}>
+                      <Shield className="w-4 h-4" />
+                      Admin Panel
                     </Link>
                   )}
                   <Link href="/my-bookings" className="px-3 py-2.5 text-sm font-medium text-gray-600 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-all flex items-center gap-2" onClick={() => setMenuOpen(false)}>

@@ -14,7 +14,11 @@ export async function GET() {
     const db = await ensureDb();
 
     if (user.role === "partner") {
-      const all = await db.execute("SELECT * FROM Booking ORDER BY createdAt DESC");
+      // Partners only see bookings assigned to them (by providerId matching their user id)
+      const all = await db.execute({
+        sql: "SELECT * FROM Booking WHERE providerId = ? ORDER BY createdAt DESC",
+        args: [String(user.id)],
+      });
       return NextResponse.json(all.rows);
     }
 

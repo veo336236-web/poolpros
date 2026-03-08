@@ -77,7 +77,7 @@ export async function generateAIResponse(userMessage: string): Promise<string> {
 
   try {
     const model = ai.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       systemInstruction: SYSTEM_PROMPT,
     });
 

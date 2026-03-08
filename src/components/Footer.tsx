@@ -49,8 +49,8 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-semibold text-white mb-3">{t("footer.contact")}</h4>
             <ul className="space-y-2 text-sm">
-              <li dir="ltr" className="text-start">info@poolpros.kw</li>
-              <li dir="ltr" className="text-start">+965 9900 0000</li>
+              <li dir="ltr" className="text-start">info@poolpros.store</li>
+              <li dir="ltr" className="text-start">+965 9477 0839</li>
               <li>{t("gov.Hawalli")}, Kuwait</li>
             </ul>
           </div>

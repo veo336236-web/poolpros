@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Phone, X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 
 const WHATSAPP_NUMBER = "96594770839";
@@ -16,7 +16,6 @@ export default function WhatsAppButton() {
       : "Hi, I need help from PoolPros Kuwait";
 
   const chatUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(defaultMessage)}`;
-  const callUrl = `https://wa.me/${WHATSAPP_NUMBER}`;
 
   return (
     <div className="fixed bottom-6 end-6 z-50 flex flex-col items-end gap-3">
@@ -65,25 +64,6 @@ export default function WhatsAppButton() {
               </div>
             </a>
 
-            {/* Call */}
-            <a
-              href={callUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#075E54] flex items-center justify-center shrink-0">
-                <Phone className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-semibold text-gray-900 block">
-                  {t("support.call")}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {t("support.callDesc")}
-                </span>
-              </div>
-            </a>
           </div>
 
           {/* Footer */}

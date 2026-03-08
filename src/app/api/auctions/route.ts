@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -16,12 +16,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const db = getDb();
-    const stmt = db.prepare(
-      `INSERT INTO Auction (customerName, phone, category, title, description, governorate, budget, fileName, userId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    const result = stmt.run(user.name, user.phone, category, title, description, governorate, budget || "", fileName || "", user.id);
+    const db = await ensureDb();
+    const result = await db.execute({
+      sql: `INSERT INTO Auction (customerName, phone, category, title, description, governorate, budget, fileName, userId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [user.name, user.phone, category, title, description, governorate, budget || "", fileName || "", user.id],
+    });
 
     return NextResponse.json({ success: true, id: result.lastInsertRowid });
   } catch {
@@ -31,12 +31,12 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const db = getDb();
-    const auctions = db.prepare(
+    const db = await ensureDb();
+    const auctions = await db.execute(
       `SELECT a.*, (SELECT COUNT(*) FROM Bid WHERE auctionId = a.id) as bidCount
        FROM Auction a ORDER BY a.createdAt DESC`
-    ).all();
-    return NextResponse.json(auctions);
+    );
+    return NextResponse.json(auctions.rows);
   } catch {
     return NextResponse.json({ error: "Failed to fetch auctions" }, { status: 500 });
   }

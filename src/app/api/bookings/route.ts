@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 
@@ -11,40 +11,20 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = getDb();
+    const db = await ensureDb();
 
     if (user.role === "partner") {
-      // Partners see bookings for their phone number (matched by provider whatsapp)
-      const bookings = db.prepare(
-        "SELECT * FROM Booking WHERE providerId IN (SELECT id FROM User WHERE phone = ?) OR providerId = ? ORDER BY createdAt DESC"
-      ).all(user.phone, String(user.id));
-
-      // Also get bookings where providerName matches their businessName
-      const byName = db.prepare(
-        "SELECT * FROM Booking WHERE providerName = ? OR providerName = ? ORDER BY createdAt DESC"
-      ).all(user.businessName, user.name);
-
-      // Merge and deduplicate
-      const allBookings = [...bookings];
-      const existingIds = new Set(allBookings.map((b: unknown) => (b as { id: number }).id));
-      for (const b of byName) {
-        if (!existingIds.has((b as { id: number }).id)) {
-          allBookings.push(b);
-        }
-      }
-
-      // For now, since providers are mock data, match all bookings to the partner
-      // In production, this would be filtered by actual provider-user mapping
-      const all = db.prepare("SELECT * FROM Booking ORDER BY createdAt DESC").all();
-      return NextResponse.json(all);
+      const all = await db.execute("SELECT * FROM Booking ORDER BY createdAt DESC");
+      return NextResponse.json(all.rows);
     }
 
     // Customers see their own bookings
-    const bookings = db.prepare(
-      "SELECT * FROM Booking WHERE customerId = ? ORDER BY createdAt DESC"
-    ).all(user.id);
+    const bookings = await db.execute({
+      sql: "SELECT * FROM Booking WHERE customerId = ? ORDER BY createdAt DESC",
+      args: [user.id],
+    });
 
-    return NextResponse.json(bookings);
+    return NextResponse.json(bookings.rows);
   } catch (err) {
     console.error("Bookings GET error:", err);
     return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 });
@@ -65,25 +45,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const db = getDb();
-    const stmt = db.prepare(
-      `INSERT INTO Booking (customerId, customerName, customerPhone, providerId, providerName, serviceId, serviceName, preferredDate, notes, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
-    );
-    const result = stmt.run(
-      user.id,
-      user.name,
-      user.phone,
-      providerId,
-      providerName || "",
-      serviceId,
-      serviceName,
-      preferredDate || "",
-      notes || ""
-    );
+    const db = await ensureDb();
+    const result = await db.execute({
+      sql: `INSERT INTO Booking (customerId, customerName, customerPhone, providerId, providerName, serviceId, serviceName, preferredDate, notes, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      args: [
+        user.id, user.name, user.phone,
+        providerId, providerName || "", serviceId, serviceName,
+        preferredDate || "", notes || "",
+      ],
+    });
 
-    // Send WhatsApp notification to provider (your number)
     const bookingId = result.lastInsertRowid;
+
+    // Send WhatsApp notification to provider
     try {
       const providerPhone = "96594770839";
       await sendWhatsAppMessage(
@@ -94,8 +69,11 @@ export async function POST(req: NextRequest) {
       console.error("WhatsApp notification error:", e);
     }
 
-    const booking = db.prepare("SELECT * FROM Booking WHERE id = ?").get(result.lastInsertRowid);
-    return NextResponse.json({ success: true, booking });
+    const booking = await db.execute({
+      sql: "SELECT * FROM Booking WHERE id = ?",
+      args: [bookingId!],
+    });
+    return NextResponse.json({ success: true, booking: booking.rows[0] });
   } catch (err) {
     console.error("Bookings POST error:", err);
     return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
@@ -121,8 +99,12 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    const db = getDb();
-    const booking = db.prepare("SELECT * FROM Booking WHERE id = ?").get(bookingId) as {
+    const db = await ensureDb();
+    const bookingResult = await db.execute({
+      sql: "SELECT * FROM Booking WHERE id = ?",
+      args: [bookingId],
+    });
+    const booking = bookingResult.rows[0] as unknown as {
       id: number; customerId: number; customerPhone: string; customerName: string;
       serviceName: string; providerName: string; status: string;
     } | undefined;
@@ -131,14 +113,14 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    // Partners can approve/reject, customers can cancel their own
     if (status === "cancelled" && booking.customerId !== user.id) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    db.prepare(
-      "UPDATE Booking SET status = ?, rejectionReason = ?, updatedAt = datetime('now') WHERE id = ?"
-    ).run(status, rejectionReason || "", bookingId);
+    await db.execute({
+      sql: "UPDATE Booking SET status = ?, rejectionReason = ?, updatedAt = datetime('now') WHERE id = ?",
+      args: [status, rejectionReason || "", bookingId],
+    });
 
     // Send WhatsApp notification to customer
     try {

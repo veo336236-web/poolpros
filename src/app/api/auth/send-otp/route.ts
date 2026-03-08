@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     // For reset: check user exists
     if (purpose === "reset") {
-      const user = getUserByPhone(phone);
+      const user = await getUserByPhone(phone);
       if (!user) {
         return NextResponse.json({ error: "Phone not found" }, { status: 404 });
       }
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     // For register: check user doesn't exist
     if (purpose === "register") {
-      const user = getUserByPhone(phone);
+      const user = await getUserByPhone(phone);
       if (user) {
         return NextResponse.json({ error: "Phone already registered" }, { status: 409 });
       }
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     // Generate 6-digit OTP
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    storeOtp(phone, code);
+    await storeOtp(phone, code);
 
     // Send via WhatsApp
     const waToken = process.env.WHATSAPP_TOKEN;
@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
 
       if (result?.error) {
         console.error("WhatsApp OTP send error:", result.error);
-        // Still return success — OTP is stored, user can request resend
       }
     } else {
       console.log("WhatsApp not configured for OTP. Code:", code);

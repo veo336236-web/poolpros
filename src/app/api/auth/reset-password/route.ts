@@ -13,12 +13,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
     }
 
-    const valid = verifyOtp(phone, code);
+    const valid = await verifyOtp(phone, code);
     if (!valid) {
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
     }
 
-    const success = resetPassword(phone, newPassword);
+    const success = await resetPassword(phone, newPassword);
     if (!success) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

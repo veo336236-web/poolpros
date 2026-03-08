@@ -4,7 +4,7 @@ import {
   generateAIResponse,
   generateCallTwiML,
 } from "@/lib/whatsapp";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 
 const PARTNER_PHONE = "96594770839";
 
@@ -25,7 +25,6 @@ export async function GET(req: NextRequest) {
 
 // Handle booking commands from partner via WhatsApp
 async function handleBookingCommand(text: string, from: string): Promise<string | null> {
-  // Only the partner can manage bookings
   if (from !== PARTNER_PHONE) return null;
 
   const trimmed = text.trim();
@@ -54,16 +53,20 @@ async function handleBookingCommand(text: string, from: string): Promise<string 
 
   // "حجوزات" or "bookings" — list pending bookings
   if (/^(?:حجوزات|bookings|طلبات|pending)$/i.test(trimmed)) {
-    return listPendingBookings();
+    return await listPendingBookings();
   }
 
-  return null; // Not a booking command
+  return null;
 }
 
 async function updateBookingViaWhatsApp(bookingId: number, status: string, reason?: string): Promise<string> {
   try {
-    const db = getDb();
-    const booking = db.prepare("SELECT * FROM Booking WHERE id = ?").get(bookingId) as {
+    const db = await ensureDb();
+    const bookingResult = await db.execute({
+      sql: "SELECT * FROM Booking WHERE id = ?",
+      args: [bookingId],
+    });
+    const booking = bookingResult.rows[0] as unknown as {
       id: number; customerPhone: string; customerName: string;
       serviceName: string; providerName: string; status: string;
     } | undefined;
@@ -76,11 +79,11 @@ async function updateBookingViaWhatsApp(bookingId: number, status: string, reaso
       return `⚠️ الحجز رقم ${bookingId} حالته "${booking.status}" وليس "قيد الانتظار"\nBooking #${bookingId} is "${booking.status}", not "pending"`;
     }
 
-    db.prepare(
-      "UPDATE Booking SET status = ?, rejectionReason = ?, updatedAt = datetime('now') WHERE id = ?"
-    ).run(status, reason || "", bookingId);
+    await db.execute({
+      sql: "UPDATE Booking SET status = ?, rejectionReason = ?, updatedAt = datetime('now') WHERE id = ?",
+      args: [status, reason || "", bookingId],
+    });
 
-    // Notify customer
     const customerPhone = `965${booking.customerPhone}`;
     if (status === "confirmed") {
       await sendWhatsAppMessage(
@@ -109,12 +112,13 @@ async function updateBookingViaWhatsApp(bookingId: number, status: string, reaso
   }
 }
 
-function listPendingBookings(): string {
+async function listPendingBookings(): Promise<string> {
   try {
-    const db = getDb();
-    const pending = db.prepare(
+    const db = await ensureDb();
+    const result = await db.execute(
       "SELECT * FROM Booking WHERE status = 'pending' ORDER BY createdAt DESC LIMIT 10"
-    ).all() as { id: number; customerName: string; serviceName: string; preferredDate: string; createdAt: string }[];
+    );
+    const pending = result.rows as unknown as { id: number; customerName: string; serviceName: string; preferredDate: string; createdAt: string }[];
 
     if (pending.length === 0) {
       return "📋 لا توجد حجوزات قيد الانتظار\n\n📋 No pending bookings";

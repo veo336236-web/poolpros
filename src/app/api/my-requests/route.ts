@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
@@ -9,13 +9,14 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = getDb();
-    const auctions = db.prepare(
-      `SELECT a.*, (SELECT COUNT(*) FROM Bid WHERE auctionId = a.id) as bidCount
-       FROM Auction a WHERE a.userId = ? ORDER BY a.createdAt DESC`
-    ).all(user.id);
+    const db = await ensureDb();
+    const auctions = await db.execute({
+      sql: `SELECT a.*, (SELECT COUNT(*) FROM Bid WHERE auctionId = a.id) as bidCount
+       FROM Auction a WHERE a.userId = ? ORDER BY a.createdAt DESC`,
+      args: [user.id],
+    });
 
-    return NextResponse.json(auctions);
+    return NextResponse.json(auctions.rows);
   } catch {
     return NextResponse.json({ error: "Failed to fetch requests" }, { status: 500 });
   }

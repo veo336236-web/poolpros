@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
@@ -9,12 +9,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = getDb();
-    const products = db.prepare(
-      "SELECT * FROM PartnerProduct WHERE userId = ? ORDER BY createdAt DESC"
-    ).all(user.id);
+    const db = await ensureDb();
+    const products = await db.execute({
+      sql: "SELECT * FROM PartnerProduct WHERE userId = ? ORDER BY createdAt DESC",
+      args: [user.id],
+    });
 
-    return NextResponse.json(products);
+    return NextResponse.json(products.rows);
   } catch {
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
   }
@@ -32,11 +33,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const db = getDb();
-    const result = db.prepare(
-      `INSERT INTO PartnerProduct (userId, title, description, category, price, image)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(user.id, title, description || "", category, price || "", image || "");
+    const db = await ensureDb();
+    const result = await db.execute({
+      sql: `INSERT INTO PartnerProduct (userId, title, description, category, price, image)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [user.id, title, description || "", category, price || "", image || ""],
+    });
 
     return NextResponse.json({ success: true, id: result.lastInsertRowid });
   } catch {
@@ -52,8 +54,11 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { id } = await req.json();
-    const db = getDb();
-    db.prepare("DELETE FROM PartnerProduct WHERE id = ? AND userId = ?").run(id, user.id);
+    const db = await ensureDb();
+    await db.execute({
+      sql: "DELETE FROM PartnerProduct WHERE id = ? AND userId = ?",
+      args: [id, user.id],
+    });
 
     return NextResponse.json({ success: true });
   } catch {

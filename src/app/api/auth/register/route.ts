@@ -13,14 +13,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
     }
 
-    const existing = getUserByPhone(phone);
+    const existing = await getUserByPhone(phone);
     if (existing) {
       return NextResponse.json({ error: "Phone number already registered" }, { status: 409 });
     }
 
     const validRole = role === "partner" ? "partner" : "customer";
-    const user = createUser(name, phone, password, validRole, businessName || "");
-    const token = createSession(user.id);
+    const user = await createUser(name, phone, password, validRole, businessName || "");
+    const token = await createSession(user.id);
 
     const res = NextResponse.json({ success: true, user: safeUser(user) });
     res.cookies.set("session", token, {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { ensureDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -15,23 +15,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await ensureDb();
 
-    // Check partner exists and is a partner
-    const partner = db.prepare("SELECT id, role FROM User WHERE id = ? AND role = 'partner'").get(partnerId);
-    if (!partner) {
+    const partnerResult = await db.execute({
+      sql: "SELECT id, role FROM User WHERE id = ? AND role = 'partner'",
+      args: [partnerId],
+    });
+    if (!partnerResult.rows[0]) {
       return NextResponse.json({ error: "Partner not found" }, { status: 404 });
     }
 
-    // Check if user already reviewed this partner
-    const existing = db.prepare("SELECT id FROM Review WHERE partnerId = ? AND userId = ?").get(partnerId, user.id);
-    if (existing) {
+    const existingResult = await db.execute({
+      sql: "SELECT id FROM Review WHERE partnerId = ? AND userId = ?",
+      args: [partnerId, user.id],
+    });
+    if (existingResult.rows[0]) {
       return NextResponse.json({ error: "Already reviewed" }, { status: 409 });
     }
 
-    const result = db.prepare(
-      "INSERT INTO Review (partnerId, userId, rating, comment) VALUES (?, ?, ?, ?)"
-    ).run(partnerId, user.id, rating, comment || "");
+    const result = await db.execute({
+      sql: "INSERT INTO Review (partnerId, userId, rating, comment) VALUES (?, ?, ?, ?)",
+      args: [partnerId, user.id, rating, comment || ""],
+    });
 
     return NextResponse.json({ success: true, id: result.lastInsertRowid });
   } catch {
@@ -46,23 +51,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing partnerId" }, { status: 400 });
     }
 
-    const db = getDb();
-    const reviews = db.prepare(
-      `SELECT r.*, u.name as reviewerName
+    const db = await ensureDb();
+    const reviews = await db.execute({
+      sql: `SELECT r.*, u.name as reviewerName
        FROM Review r
        JOIN User u ON r.userId = u.id
        WHERE r.partnerId = ?
-       ORDER BY r.createdAt DESC`
-    ).all(parseInt(partnerId));
+       ORDER BY r.createdAt DESC`,
+      args: [parseInt(partnerId)],
+    });
 
-    const stats = db.prepare(
-      `SELECT COUNT(*) as count, ROUND(AVG(rating), 1) as avg
-       FROM Review WHERE partnerId = ?`
-    ).get(parseInt(partnerId)) as { count: number; avg: number | null };
+    const stats = await db.execute({
+      sql: `SELECT COUNT(*) as count, ROUND(AVG(rating), 1) as avg
+       FROM Review WHERE partnerId = ?`,
+      args: [parseInt(partnerId)],
+    });
+    const statsRow = stats.rows[0] as unknown as { count: number; avg: number | null };
 
     return NextResponse.json({
-      reviews,
-      stats: { count: stats.count, average: stats.avg || 0 },
+      reviews: reviews.rows,
+      stats: { count: statsRow.count, average: statsRow.avg || 0 },
     });
   } catch {
     return NextResponse.json({ error: "Failed to fetch reviews" }, { status: 500 });

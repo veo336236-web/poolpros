@@ -9,12 +9,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const user = getUserByPhone(phone);
+    const user = await getUserByPhone(phone);
     if (!user || !verifyPassword(user, password)) {
       return NextResponse.json({ error: "Invalid phone or password" }, { status: 401 });
     }
 
-    const token = createSession(user.id);
+    const token = await createSession(user.id);
 
     const res = NextResponse.json({ success: true, user: safeUser(user) });
     res.cookies.set("session", token, {

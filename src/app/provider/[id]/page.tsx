@@ -147,7 +147,7 @@ export default function ProviderPage() {
                   <a
                     href={`https://wa.me/${provider.whatsappNumber}?text=${encodeURIComponent(
                       lang === "ar"
-                        ? `مرحباً، أريد حجز خدمة: ${service.nameAr} من ${provider.nameAr || provider.name}`
+                        ? `مرحباً، أريد حجز خدمة: ${service.nameAr} من ${provider.name}`
                         : `Hi, I'd like to book: ${service.name} from ${provider.name}`
                     )}`}
                     target="_blank"

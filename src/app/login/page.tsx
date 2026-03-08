@@ -94,6 +94,12 @@ export default function LoginPage() {
             >
               {loading ? "..." : t("auth.loginBtn")}
             </button>
+
+            <div className="text-end">
+              <Link href="/forgot-password" className="text-sm text-cyan-600 hover:underline">
+                {t("auth.forgotPassword")}
+              </Link>
+            </div>
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-5">

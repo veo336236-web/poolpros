@@ -8,9 +8,10 @@ import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 
 export default function RegisterPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { register } = useAuth();
   const router = useRouter();
+  const [step, setStep] = useState<"form" | "otp">("form");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -19,10 +20,11 @@ export default function RegisterPage() {
     role: "customer" as "customer" | "partner",
     businessName: "",
   });
+  const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -34,8 +36,56 @@ export default function RegisterPage() {
       setError(t("auth.passwordMismatch"));
       return;
     }
+    if (form.phone.length !== 8) {
+      setError(lang === "ar" ? "أدخل رقم هاتف صحيح" : "Enter a valid phone number");
+      return;
+    }
 
     setLoading(true);
+    // Send OTP to verify phone
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: `965${form.phone}`, purpose: "register" }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      setStep("otp");
+    } else {
+      setError(
+        data.error === "Phone already registered"
+          ? t("auth.phoneExists")
+          : data.error || ""
+      );
+    }
+    setLoading(false);
+  };
+
+  const handleVerifyAndRegister = async () => {
+    setError("");
+    if (otpCode.length !== 6) {
+      setError(t("auth.otpInvalid"));
+      return;
+    }
+
+    setLoading(true);
+
+    // Verify OTP first
+    const verifyRes = await fetch("/api/auth/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: `965${form.phone}`, code: otpCode }),
+    });
+    const verifyData = await verifyRes.json();
+
+    if (!verifyData.success) {
+      setError(t("auth.otpInvalid"));
+      setLoading(false);
+      return;
+    }
+
+    // OTP verified — register account
     const result = await register({
       name: form.name,
       phone: form.phone,
@@ -56,6 +106,16 @@ export default function RegisterPage() {
     setLoading(false);
   };
 
+  const resendOtp = async () => {
+    setLoading(true);
+    await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: `965${form.phone}`, purpose: "register" }),
+    });
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -65,7 +125,9 @@ export default function RegisterPage() {
               <UserPlus className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">{t("auth.register")}</h1>
-            <p className="text-sm text-gray-500 mt-1">{t("auth.registerSubtitle")}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {step === "otp" ? t("auth.verifyPhone") : t("auth.registerSubtitle")}
+            </p>
           </div>
 
           {error && (
@@ -74,121 +136,170 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Account type toggle */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {t("auth.accountType")}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, role: "customer" })}
-                  className={`py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
-                    form.role === "customer"
-                      ? "bg-cyan-50 border-cyan-300 text-cyan-700"
-                      : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                  }`}
-                >
-                  {t("auth.registerAsCustomer")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, role: "partner" })}
-                  className={`py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
-                    form.role === "partner"
-                      ? "bg-cyan-50 border-cyan-300 text-cyan-700"
-                      : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-                  }`}
-                >
-                  {t("auth.registerAsPartner")}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {t("auth.name")} *
-              </label>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
-              />
-            </div>
-
-            {form.role === "partner" && (
+          {/* Step 1: Registration Form */}
+          {step === "form" && (
+            <form onSubmit={handleSendOtp} className="space-y-4">
+              {/* Account type toggle */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  {t("auth.businessName")} *
+                  {t("auth.accountType")}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, role: "customer" })}
+                    className={`py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
+                      form.role === "customer"
+                        ? "bg-cyan-50 border-cyan-300 text-cyan-700"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    {t("auth.registerAsCustomer")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, role: "partner" })}
+                    className={`py-2.5 px-4 rounded-xl text-sm font-medium border transition-all ${
+                      form.role === "partner"
+                        ? "bg-cyan-50 border-cyan-300 text-cyan-700"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    {t("auth.registerAsPartner")}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {t("auth.name")} *
                 </label>
                 <input
                   type="text"
-                  required={form.role === "partner"}
-                  value={form.businessName}
-                  onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                 />
               </div>
-            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {t("auth.phone")} *
-              </label>
-              <div className="flex" dir="ltr">
-                <span className="inline-flex items-center px-3 rounded-s-xl border border-e-0 border-gray-200 bg-gray-50 text-sm text-gray-500">
-                  +965
-                </span>
+              {form.role === "partner" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {t("auth.businessName")} *
+                  </label>
+                  <input
+                    type="text"
+                    required={form.role === "partner"}
+                    value={form.businessName}
+                    onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {t("auth.phone")} *
+                </label>
+                <div className="flex" dir="ltr">
+                  <span className="inline-flex items-center px-3 rounded-s-xl border border-e-0 border-gray-200 bg-gray-50 text-sm text-gray-500">
+                    +965
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    inputMode="numeric"
+                    pattern="[0-9]{8}"
+                    maxLength={8}
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 8) })}
+                    className="w-full px-4 py-2.5 rounded-e-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {t("auth.password")} *
+                </label>
                 <input
-                  type="text"
+                  type="password"
                   required
-                  inputMode="numeric"
-                  pattern="[0-9]{8}"
-                  maxLength={8}
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 8) })}
-                  className="w-full px-4 py-2.5 rounded-e-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {t("auth.password")} *
-              </label>
-              <input
-                type="password"
-                required
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {t("auth.confirmPassword")} *
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {t("auth.confirmPassword")} *
-              </label>
-              <input
-                type="password"
-                required
-                value={form.confirmPassword}
-                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
-              />
-            </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all active:scale-[0.98] disabled:opacity-60"
+              >
+                {loading ? "..." : t("auth.registerBtn")}
+              </button>
+            </form>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all active:scale-[0.98] disabled:opacity-60"
-            >
-              {loading ? "..." : t("auth.registerBtn")}
-            </button>
-          </form>
+          {/* Step 2: OTP Verification */}
+          {step === "otp" && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 text-center">
+                {t("auth.codeSentTo")} <strong dir="ltr">+965{form.phone}</strong>
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {t("auth.otpCode")}
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-center text-2xl tracking-[0.5em] font-mono"
+                  placeholder="000000"
+                  dir="ltr"
+                />
+              </div>
+              <button
+                onClick={handleVerifyAndRegister}
+                disabled={loading}
+                className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all active:scale-[0.98] disabled:opacity-60"
+              >
+                {loading ? "..." : t("auth.verifyCode")}
+              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => { setStep("form"); setError(""); }}
+                  className="text-sm text-gray-500 hover:underline"
+                >
+                  {lang === "ar" ? "رجوع" : "Back"}
+                </button>
+                <button
+                  onClick={resendOtp}
+                  disabled={loading}
+                  className="text-sm text-cyan-600 hover:underline disabled:opacity-50"
+                >
+                  {t("auth.resendCode")}
+                </button>
+              </div>
+            </div>
+          )}
 
           <p className="text-center text-sm text-gray-500 mt-5">
             {t("auth.hasAccount")}{" "}

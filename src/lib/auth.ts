@@ -89,6 +89,45 @@ export async function getCurrentUser(): Promise<UserRow | null> {
   return getUserBySession(token);
 }
 
+// OTP management
+export function storeOtp(phone: string, code: string) {
+  const db = getDb();
+  db.exec(`CREATE TABLE IF NOT EXISTS Otp (
+    phone TEXT PRIMARY KEY,
+    code TEXT NOT NULL,
+    expiresAt DATETIME NOT NULL
+  )`);
+  // Delete old OTP for this phone
+  db.prepare("DELETE FROM Otp WHERE phone = ?").run(phone);
+  // Store new OTP (5 min expiry)
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  db.prepare("INSERT INTO Otp (phone, code, expiresAt) VALUES (?, ?, ?)").run(phone, code, expiresAt);
+}
+
+export function verifyOtp(phone: string, code: string): boolean {
+  const db = getDb();
+  try {
+    const row = db.prepare(
+      "SELECT * FROM Otp WHERE phone = ? AND code = ? AND expiresAt > datetime('now')"
+    ).get(phone, code) as { phone: string } | undefined;
+    if (row) {
+      db.prepare("DELETE FROM Otp WHERE phone = ?").run(phone);
+      return true;
+    }
+  } catch { /* table might not exist */ }
+  return false;
+}
+
+export function resetPassword(phone: string, newPassword: string): boolean {
+  const db = getDb();
+  const salt = crypto.randomBytes(16).toString("hex");
+  const passwordHash = hashPassword(newPassword, salt);
+  const result = db.prepare(
+    "UPDATE User SET passwordHash = ?, salt = ? WHERE phone = ?"
+  ).run(passwordHash, salt, phone);
+  return result.changes > 0;
+}
+
 export function safeUser(user: UserRow) {
   return {
     id: user.id,

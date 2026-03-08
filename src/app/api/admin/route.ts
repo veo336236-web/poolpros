@@ -50,7 +50,28 @@ export async function GET(req: NextRequest) {
       const result = await db.execute(
         `SELECT id, name, phone, role, businessName, categories, description, governorate, location, whatsappNumber, basePrice, image, isVerified, createdAt FROM User WHERE role = 'partner' ORDER BY createdAt DESC`
       );
-      return NextResponse.json(result.rows);
+
+      // Fetch products and bookings for each provider
+      const providersWithDetails = await Promise.all(
+        result.rows.map(async (row) => {
+          const r = row as Record<string, unknown>;
+          const pid = r.id as number;
+
+          const prods = await db.execute({
+            sql: "SELECT * FROM PartnerProduct WHERE userId = ? ORDER BY createdAt DESC",
+            args: [pid],
+          });
+
+          const bkgs = await db.execute({
+            sql: "SELECT * FROM Booking WHERE providerId = ? ORDER BY createdAt DESC",
+            args: [String(pid)],
+          });
+
+          return { ...r, products: prods.rows, bookings: bkgs.rows };
+        })
+      );
+
+      return NextResponse.json(providersWithDetails);
     }
 
     if (section === "users") {

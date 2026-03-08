@@ -96,6 +96,28 @@ interface Product {
   createdAt: string;
 }
 
+interface ProviderProduct {
+  id: number;
+  userId: number;
+  title: string;
+  description: string;
+  category: string;
+  price: string;
+  image: string;
+  createdAt: string;
+}
+
+interface ProviderBooking {
+  id: number;
+  customerName: string;
+  customerPhone: string;
+  serviceName: string;
+  preferredDate: string;
+  status: string;
+  notes: string;
+  createdAt: string;
+}
+
 interface DbProvider {
   id: number;
   name: string;
@@ -110,6 +132,8 @@ interface DbProvider {
   image: string;
   isVerified: number;
   createdAt: string;
+  products: ProviderProduct[];
+  bookings: ProviderBooking[];
 }
 
 type Tab = "stats" | "users" | "bookings" | "registrations" | "providers" | "products";
@@ -130,6 +154,8 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState("");
   const [editProvider, setEditProvider] = useState<DbProvider | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [expandedProvider, setExpandedProvider] = useState<number | null>(null);
+  const [editProviderProduct, setEditProviderProduct] = useState<ProviderProduct | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -505,8 +531,13 @@ export default function AdminPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {dbProviders.map((p) => (
-                        <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                      {dbProviders.map((p) => {
+                        const isExpanded = expandedProvider === p.id;
+                        const provProducts = p.products || [];
+                        const provBookings = p.bookings || [];
+                        return (
+                        <div key={p.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                          <div className="p-5">
                           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shrink-0">
                               <span className="text-white font-bold text-lg">
@@ -539,17 +570,124 @@ export default function AdminPage() {
                                 <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatDate(p.createdAt)}</span>
                               </div>
                               {p.description && <p className="text-sm text-gray-600 mb-2 line-clamp-2">{p.description}</p>}
-                              {p.basePrice > 0 && <span className="text-xs text-gray-400">Base price: {p.basePrice} KWD</span>}
+                              <div className="flex flex-wrap gap-3 text-xs text-gray-400">
+                                {p.basePrice > 0 && <span>Base price: {p.basePrice} KWD</span>}
+                                <span className="font-medium text-cyan-600">{provProducts.length} products</span>
+                                <span className="font-medium text-purple-600">{provBookings.length} bookings</span>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => setEditProvider({ ...p })}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all shrink-0"
-                            >
-                              <Pencil className="w-4 h-4" /> Edit
-                            </button>
+                            <div className="flex gap-2 shrink-0">
+                              <button
+                                onClick={() => setExpandedProvider(isExpanded ? null : p.id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-all ${isExpanded ? "text-cyan-700 bg-cyan-50" : "text-gray-600 bg-gray-50 hover:bg-gray-100"}`}
+                              >
+                                <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                {isExpanded ? "Close" : "Details"}
+                              </button>
+                              <button
+                                onClick={() => setEditProvider({ ...p })}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all"
+                              >
+                                <Pencil className="w-4 h-4" /> Edit
+                              </button>
+                            </div>
                           </div>
+                          </div>
+
+                          {/* Expanded: Products & Bookings */}
+                          {isExpanded && (
+                            <div className="border-t border-gray-100 bg-gray-50/50">
+                              {/* Products Section */}
+                              <div className="p-5">
+                                <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                  <Package className="w-4 h-4 text-cyan-600" />
+                                  Products ({provProducts.length})
+                                </h4>
+                                {provProducts.length === 0 ? (
+                                  <p className="text-xs text-gray-400 italic">No products added yet.</p>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {provProducts.map((prod) => (
+                                      <div key={prod.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-start gap-3">
+                                        {prod.image ? (
+                                          <img src={prod.image} alt={prod.title} className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                        ) : (
+                                          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                                            <Package className="w-5 h-5 text-gray-400" />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <h5 className="text-sm font-semibold text-gray-900 truncate">{prod.title}</h5>
+                                          <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-xs bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded-full">{prod.category}</span>
+                                            {prod.price && <span className="text-xs font-medium text-gray-600">{prod.price} KWD</span>}
+                                          </div>
+                                          {prod.description && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{prod.description}</p>}
+                                        </div>
+                                        <div className="flex gap-1 shrink-0">
+                                          <button onClick={() => setEditProviderProduct({ ...prod })}
+                                            className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg transition-all" title="Edit">
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button onClick={() => {
+                                            if (confirm(`Delete "${prod.title}"?`)) adminAction("deleteProduct", prod.id, "");
+                                          }}
+                                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Bookings Section */}
+                              <div className="p-5 border-t border-gray-100">
+                                <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                  <CalendarCheck className="w-4 h-4 text-purple-600" />
+                                  Bookings ({provBookings.length})
+                                </h4>
+                                {provBookings.length === 0 ? (
+                                  <p className="text-xs text-gray-400 italic">No bookings yet.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {provBookings.map((bk) => (
+                                      <div key={bk.id} className="bg-white rounded-xl border border-gray-100 p-3">
+                                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-mono text-gray-400">#{bk.id}</span>
+                                            {statusBadge(bk.status)}
+                                            <span className="text-sm font-medium text-gray-900">{bk.serviceName}</span>
+                                          </div>
+                                          <div className="flex gap-1.5">
+                                            {bk.status !== "confirmed" && (
+                                              <button onClick={() => adminAction("updateBookingStatus", bk.id, "confirmed")} className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">Confirm</button>
+                                            )}
+                                            {bk.status !== "completed" && (
+                                              <button onClick={() => adminAction("updateBookingStatus", bk.id, "completed")} className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100">Complete</button>
+                                            )}
+                                            {bk.status !== "rejected" && (
+                                              <button onClick={() => adminAction("updateBookingStatus", bk.id, "rejected")} className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100">Reject</button>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-500">
+                                          <span><Users className="w-3 h-3 inline -mt-0.5 me-0.5" />{bk.customerName}</span>
+                                          <span><Phone className="w-3 h-3 inline -mt-0.5 me-0.5" />{bk.customerPhone}</span>
+                                          {bk.preferredDate && <span><Clock className="w-3 h-3 inline -mt-0.5 me-0.5" />{bk.preferredDate}</span>}
+                                        </div>
+                                        {bk.notes && <p className="text-xs text-gray-500 mt-1 bg-gray-50 rounded-lg p-2">{bk.notes}</p>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -856,6 +994,69 @@ export default function AdminPage() {
                 <Save className="w-4 h-4" /> Save Changes
               </button>
               <button onClick={() => setEditProvider(null)}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Provider Product Modal (from providers tab) */}
+      {editProviderProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Product</h3>
+              <button onClick={() => setEditProviderProduct(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Title</label>
+                <input type="text" value={editProviderProduct.title} onChange={(e) => setEditProviderProduct({ ...editProviderProduct, title: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+                <textarea value={editProviderProduct.description} onChange={(e) => setEditProviderProduct({ ...editProviderProduct, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows={3} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                  <select value={editProviderProduct.category} onChange={(e) => setEditProviderProduct({ ...editProviderProduct, category: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm">
+                    <option value="pool">Pools</option>
+                    <option value="fountain">Fountains</option>
+                    <option value="fish">Fish Pools</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Price (KWD)</label>
+                  <input type="text" value={editProviderProduct.price} onChange={(e) => setEditProviderProduct({ ...editProviderProduct, price: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={async () => {
+                  await adminActionObj({
+                    action: "updateProduct",
+                    id: editProviderProduct.id,
+                    title: editProviderProduct.title,
+                    description: editProviderProduct.description,
+                    category: editProviderProduct.category,
+                    price: editProviderProduct.price,
+                  });
+                  setEditProviderProduct(null);
+                  alert("Product updated!");
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-all"
+              >
+                <Save className="w-4 h-4" /> Save
+              </button>
+              <button onClick={() => setEditProviderProduct(null)}
                 className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all">
                 Cancel
               </button>

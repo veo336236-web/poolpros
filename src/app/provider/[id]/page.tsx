@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
@@ -13,14 +14,29 @@ import {
   Briefcase,
   Calendar,
   MessageCircle,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 import { getProviderById, getServicesByProviderId } from "@/lib/data";
 import { useLanguage } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
 
 export default function ProviderPage() {
   const { t, lang } = useLanguage();
+  const { user } = useAuth();
+  const router = useRouter();
   const params = useParams();
   const provider = getProviderById(params.id as string);
+
+  const [bookingService, setBookingService] = useState<{
+    id: string;
+    name: string;
+    nameAr: string;
+  } | null>(null);
+  const [preferredDate, setPreferredDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
   if (!provider) {
     notFound();
@@ -41,6 +57,45 @@ export default function ProviderPage() {
     t("provider.whatsappMessage")
   )}`;
 
+  const handleBookNow = (service: { id: string; name: string; nameAr: string }) => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    setBookingService(service);
+    setBookingSuccess(false);
+    setPreferredDate("");
+    setNotes("");
+  };
+
+  const handleSubmitBooking = async () => {
+    if (!bookingService || !user) return;
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerId: provider.id,
+          providerName: provider.name,
+          serviceId: bookingService.id,
+          serviceName: lang === "ar" ? bookingService.nameAr : bookingService.name,
+          preferredDate,
+          notes,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBookingSuccess(true);
+      }
+    } catch (err) {
+      console.error("Booking error:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero header */}
@@ -55,7 +110,6 @@ export default function ProviderPage() {
           </Link>
 
           <div className="flex flex-col sm:flex-row items-start gap-5">
-            {/* Avatar */}
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
               <span className="text-3xl sm:text-4xl font-bold text-white">
                 {initials}
@@ -93,7 +147,6 @@ export default function ProviderPage() {
                 </div>
               </div>
 
-              {/* Stats row */}
               <div className="flex items-center gap-5 mt-4 flex-wrap">
                 <div className="flex items-center gap-1.5 text-sm text-cyan-100">
                   <Briefcase className="w-4 h-4 text-cyan-300" />
@@ -109,7 +162,7 @@ export default function ProviderPage() {
         </div>
       </div>
 
-      {/* Content card area — overlaps hero */}
+      {/* Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 sm:-mt-12 pb-12 space-y-5">
         {/* About */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
@@ -144,18 +197,12 @@ export default function ProviderPage() {
                   <span className="text-lg font-bold text-cyan-600">
                     {lang === "ar" ? service.priceDisplayAr : service.priceDisplay}
                   </span>
-                  <a
-                    href={`https://wa.me/${provider.whatsappNumber}?text=${encodeURIComponent(
-                      lang === "ar"
-                        ? `مرحباً، أريد حجز خدمة: ${service.nameAr} من ${provider.name}`
-                        : `Hi, I'd like to book: ${service.name} from ${provider.name}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => handleBookNow(service)}
                     className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-lg hover:shadow-md hover:shadow-cyan-500/25 active:scale-[0.97] transition-all whitespace-nowrap text-center"
                   >
                     {t("provider.bookNow")}
-                  </a>
+                  </button>
                 </div>
               </div>
             ))}
@@ -187,6 +234,89 @@ export default function ProviderPage() {
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      {bookingService && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {bookingSuccess ? (
+                <div className="text-center py-4">
+                  <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {t("booking.success")}
+                  </h3>
+                  <button
+                    onClick={() => setBookingService(null)}
+                    className="mt-4 px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-xl hover:shadow-lg transition-all"
+                  >
+                    {lang === "ar" ? "حسناً" : "OK"}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {t("booking.bookService")}
+                    </h3>
+                    <button
+                      onClick={() => setBookingService(null)}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Service info */}
+                  <div className="p-3 bg-cyan-50 rounded-xl mb-4">
+                    <p className="text-sm font-semibold text-cyan-800">
+                      {lang === "ar" ? bookingService.nameAr : bookingService.name}
+                    </p>
+                    <p className="text-xs text-cyan-600 mt-0.5">{provider.name}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        {t("booking.preferredDate")}
+                      </label>
+                      <input
+                        type="date"
+                        value={preferredDate}
+                        onChange={(e) => setPreferredDate(e.target.value)}
+                        min={new Date().toISOString().split("T")[0]}
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                        dir="ltr"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        {t("booking.notes")}
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder={t("booking.notesPlaceholder")}
+                        className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm resize-none"
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleSubmitBooking}
+                      disabled={submitting}
+                      className="w-full py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {submitting ? t("booking.submitting") : t("booking.submit")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

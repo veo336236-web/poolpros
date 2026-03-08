@@ -106,6 +106,26 @@ function initTables(db: Database.Database) {
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS Booking (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customerId INTEGER NOT NULL,
+      customerName TEXT NOT NULL,
+      customerPhone TEXT NOT NULL,
+      providerId TEXT NOT NULL,
+      providerName TEXT NOT NULL,
+      serviceId TEXT NOT NULL,
+      serviceName TEXT NOT NULL,
+      preferredDate TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      status TEXT DEFAULT 'pending',
+      rejectionReason TEXT DEFAULT '',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customerId) REFERENCES User(id)
+    );
+  `);
+
   // Add userId column to existing Auction/Bid tables if missing
   try { db.exec("ALTER TABLE Auction ADD COLUMN userId INTEGER"); } catch { /* already exists */ }
   try { db.exec("ALTER TABLE Bid ADD COLUMN userId INTEGER"); } catch { /* already exists */ }

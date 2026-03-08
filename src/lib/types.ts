@@ -33,15 +33,20 @@ export interface Service {
 }
 
 export interface Booking {
-  id: string;
-  customerId: string;
+  id: number;
+  customerId: number;
+  customerName: string;
+  customerPhone: string;
   providerId: string;
+  providerName: string;
   serviceId: string;
-  date: string;
-  status: "pending" | "confirmed" | "completed" | "cancelled";
-  totalAmount: number;
-  /** Calculated as 10% of totalAmount */
-  commissionFee: number;
+  serviceName: string;
+  preferredDate: string;
+  notes: string;
+  status: "pending" | "confirmed" | "rejected" | "completed" | "cancelled";
+  rejectionReason: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ── Filter Types ───────────────────────────────────────────────────

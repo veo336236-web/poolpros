@@ -148,6 +148,13 @@ export async function ensureDb(): Promise<Client> {
     // Migrations: add columns that may not exist in older databases
     const migrations = [
       "ALTER TABLE User ADD COLUMN categories TEXT DEFAULT ''",
+      "ALTER TABLE User ADD COLUMN description TEXT DEFAULT ''",
+      "ALTER TABLE User ADD COLUMN governorate TEXT DEFAULT ''",
+      "ALTER TABLE User ADD COLUMN location TEXT DEFAULT ''",
+      "ALTER TABLE User ADD COLUMN whatsappNumber TEXT DEFAULT ''",
+      "ALTER TABLE User ADD COLUMN basePrice REAL DEFAULT 0",
+      "ALTER TABLE User ADD COLUMN image TEXT DEFAULT ''",
+      "ALTER TABLE User ADD COLUMN isVerified INTEGER DEFAULT 0",
     ];
     for (const sql of migrations) {
       try {

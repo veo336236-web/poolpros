@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal, SearchX } from "lucide-react";
+import { SlidersHorizontal, SearchX, Loader2 } from "lucide-react";
 import ProviderCard from "@/components/ProviderCard";
 import FilterSidebar from "@/components/FilterSidebar";
-import { providers } from "@/lib/data";
-import { ServiceType } from "@/lib/types";
+import { providers as hardcodedProviders } from "@/lib/data";
+import { Provider, ServiceType } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n";
 
 export default function ExploreClient() {
@@ -18,10 +18,30 @@ export default function ExploreClient() {
     | "fish"
     | null;
 
+  const [allProviders, setAllProviders] = useState<Provider[]>(hardcodedProviders);
+  const [loadingProviders, setLoadingProviders] = useState(true);
   const [selectedServices, setSelectedServices] = useState<ServiceType[]>([]);
   const [maxPrice, setMaxPrice] = useState(250);
   const [governorate, setGovernorate] = useState("All Areas");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  // Fetch providers from API (hardcoded + database partners)
+  useEffect(() => {
+    async function fetchProviders() {
+      try {
+        const res = await fetch("/api/providers");
+        if (res.ok) {
+          const data = await res.json();
+          setAllProviders(data);
+        }
+      } catch {
+        // Keep hardcoded providers as fallback
+      } finally {
+        setLoadingProviders(false);
+      }
+    }
+    fetchProviders();
+  }, []);
 
   const handleServiceToggle = (service: ServiceType) => {
     setSelectedServices((prev) =>
@@ -38,14 +58,14 @@ export default function ExploreClient() {
   };
 
   const filteredProviders = useMemo(() => {
-    return providers.filter((p) => {
+    return allProviders.filter((p) => {
       if (categoryParam && p.category !== categoryParam) return false;
-      if (p.basePrice > maxPrice) return false;
+      if (maxPrice < 250 && p.basePrice > maxPrice) return false;
       if (governorate !== "All Areas" && p.governorate !== governorate)
         return false;
       return true;
     });
-  }, [categoryParam, maxPrice, governorate]);
+  }, [allProviders, categoryParam, maxPrice, governorate]);
 
   const activeFilterCount =
     selectedServices.length +
@@ -118,7 +138,11 @@ export default function ExploreClient() {
 
           {/* Results grid */}
           <div className="flex-1">
-            {filteredProviders.length === 0 ? (
+            {loadingProviders ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-cyan-600 animate-spin" />
+              </div>
+            ) : filteredProviders.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
                 <div className="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center mx-auto mb-4">
                   <SearchX className="w-7 h-7 text-cyan-400" />

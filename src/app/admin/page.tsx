@@ -27,8 +27,11 @@ import {
   Store,
   KeyRound,
   Package,
+  Pencil,
+  Save,
+  X,
 } from "lucide-react";
-import { providers, services } from "@/lib/data";
+import { providers as hardcodedProviders, services } from "@/lib/data";
 
 interface Stats {
   totalUsers: number;
@@ -93,6 +96,22 @@ interface Product {
   createdAt: string;
 }
 
+interface DbProvider {
+  id: number;
+  name: string;
+  phone: string;
+  businessName: string;
+  categories: string;
+  description: string;
+  governorate: string;
+  location: string;
+  whatsappNumber: string;
+  basePrice: number;
+  image: string;
+  isVerified: number;
+  createdAt: string;
+}
+
 type Tab = "stats" | "users" | "bookings" | "registrations" | "providers" | "products";
 
 export default function AdminPage() {
@@ -105,9 +124,12 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [dbProviders, setDbProviders] = useState<DbProvider[]>([]);
   const [roleDropdown, setRoleDropdown] = useState<number | null>(null);
   const [passwordModal, setPasswordModal] = useState<{ id: number; name: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [editProvider, setEditProvider] = useState<DbProvider | null>(null);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -116,10 +138,6 @@ export default function AdminPage() {
   }, [user, authLoading, router]);
 
   const fetchData = async (section: Tab) => {
-    if (section === "providers") {
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
       const res = await fetch(`/api/admin?section=${section}`);
@@ -130,6 +148,7 @@ export default function AdminPage() {
       else if (section === "bookings") setBookings(data);
       else if (section === "registrations") setRegistrations(data);
       else if (section === "products") setProducts(data);
+      else if (section === "providers") setDbProviders(data);
     } catch (err) {
       console.error("Admin fetch error:", err);
     } finally {
@@ -149,6 +168,21 @@ export default function AdminPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, id, value }),
+      });
+      if (res.ok) {
+        fetchData(tab);
+      }
+    } catch (err) {
+      console.error("Admin action error:", err);
+    }
+  };
+
+  const adminActionObj = async (body: Record<string, unknown>) => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         fetchData(tab);
@@ -202,6 +236,18 @@ export default function AdminPage() {
     try {
       return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     } catch { return d; }
+  };
+
+  const catIcon = (cat: string) => {
+    if (cat === "pool") return <Waves className="w-4 h-4" />;
+    if (cat === "fountain") return <Sparkles className="w-4 h-4" />;
+    return <Fish className="w-4 h-4" />;
+  };
+
+  const catLabel = (cat: string) => {
+    if (cat === "pool") return "Pools";
+    if (cat === "fountain") return "Fountains";
+    return "Fish Pools";
   };
 
   return (
@@ -340,7 +386,6 @@ export default function AdminPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {/* Role dropdown */}
                         <div className="relative">
                           <button
                             onClick={() => setRoleDropdown(roleDropdown === u.id ? null : u.id)}
@@ -444,67 +489,130 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* Providers Tab */}
+            {/* Providers Tab — Database Partners + Hardcoded */}
             {tab === "providers" && (
-              <div className="space-y-4">
-                <div className="text-sm text-gray-500 mb-2">{providers.length} providers listed on explore page</div>
-                {providers.map((p) => {
-                  const providerServices = services.filter((s) => s.providerId === p.id);
-                  const catIcon = p.category === "pool" ? <Waves className="w-4 h-4" /> : p.category === "fountain" ? <Sparkles className="w-4 h-4" /> : <Fish className="w-4 h-4" />;
-                  const catLabel = p.category === "pool" ? "Pools" : p.category === "fountain" ? "Fountains" : "Fish Pools";
-                  return (
-                    <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5">
-                      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                        {/* Avatar */}
-                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shrink-0">
-                          <span className="text-white font-bold text-lg">
-                            {p.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <h3 className="text-base font-bold text-gray-900">{p.name}</h3>
-                            {p.isVerified && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                                <CheckCircle2 className="w-3 h-3" /> Verified
+              <div className="space-y-6">
+                {/* Database Partners (editable) */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-cyan-600" />
+                    Registered Partners ({dbProviders.length})
+                  </h3>
+                  {dbProviders.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+                      <Store className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">No registered partners yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {dbProviders.map((p) => (
+                        <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shrink-0">
+                              <span className="text-white font-bold text-lg">
+                                {(p.businessName || p.name).split(" ").map((w: string) => w[0]).join("").slice(0, 2)}
                               </span>
-                            )}
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700">
-                              {catIcon} {catLabel}
-                            </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="text-base font-bold text-gray-900">{p.businessName || p.name}</h3>
+                                {p.isVerified ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                                    <CheckCircle2 className="w-3 h-3" /> Verified
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                    Not Verified
+                                  </span>
+                                )}
+                                {p.categories && p.categories.split(",").map((cat: string) => (
+                                  <span key={cat} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700">
+                                    {catIcon(cat)} {catLabel(cat)}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-2">
+                                <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{p.name}</span>
+                                <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{p.phone}</span>
+                                {p.governorate && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{p.governorate}</span>}
+                                {p.whatsappNumber && <span className="flex items-center gap-1">WA: {p.whatsappNumber}</span>}
+                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatDate(p.createdAt)}</span>
+                              </div>
+                              {p.description && <p className="text-sm text-gray-600 mb-2 line-clamp-2">{p.description}</p>}
+                              {p.basePrice > 0 && <span className="text-xs text-gray-400">Base price: {p.basePrice} KWD</span>}
+                            </div>
+                            <button
+                              onClick={() => setEditProvider({ ...p })}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all shrink-0"
+                            >
+                              <Pencil className="w-4 h-4" /> Edit
+                            </button>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-2">
-                            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{p.location}</span>
-                            <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-amber-500" />{p.rating} ({p.reviewCount} reviews)</span>
-                            <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{p.whatsappNumber}</span>
-                          </div>
-
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{p.description}</p>
-
-                          {/* Services */}
-                          <div className="border-t border-gray-100 pt-3">
-                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Services ({providerServices.length})</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {providerServices.map((svc) => (
-                                <div key={svc.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                                  <span className="text-sm text-gray-700 truncate">{svc.name}</span>
-                                  <span className="text-xs font-medium text-cyan-700 shrink-0 ms-2">{svc.priceDisplay}</span>
+                {/* Hardcoded Providers (read-only) */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <Store className="w-5 h-5 text-teal-600" />
+                    Demo Providers ({hardcodedProviders.length})
+                    <span className="text-xs font-normal text-gray-400 ml-1">(hardcoded - read only)</span>
+                  </h3>
+                  <div className="space-y-4">
+                    {hardcodedProviders.map((p) => {
+                      const providerServices = services.filter((s) => s.providerId === p.id);
+                      return (
+                        <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shrink-0">
+                              <span className="text-white font-bold text-lg">
+                                {p.name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="text-base font-bold text-gray-900">{p.name}</h3>
+                                {p.isVerified && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                                    <CheckCircle2 className="w-3 h-3" /> Verified
+                                  </span>
+                                )}
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700">
+                                  {catIcon(p.category)} {catLabel(p.category)}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-2">
+                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{p.location}</span>
+                                <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-amber-500" />{p.rating} ({p.reviewCount} reviews)</span>
+                                <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{p.whatsappNumber}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{p.description}</p>
+                              <div className="border-t border-gray-100 pt-3">
+                                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Services ({providerServices.length})</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {providerServices.map((svc) => (
+                                    <div key={svc.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                                      <span className="text-sm text-gray-700 truncate">{svc.name}</span>
+                                      <span className="text-xs font-medium text-cyan-700 shrink-0 ms-2">{svc.priceDisplay}</span>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              </div>
+                              <div className="flex flex-wrap gap-3 mt-3 text-xs text-gray-400">
+                                <span>{p.yearsInBusiness} years in business</span>
+                                <span>{p.completedJobs} jobs completed</span>
+                                <span>Base price: {p.basePrice} KWD</span>
+                              </div>
                             </div>
                           </div>
-
-                          <div className="flex flex-wrap gap-3 mt-3 text-xs text-gray-400">
-                            <span>{p.yearsInBusiness} years in business</span>
-                            <span>{p.completedJobs} jobs completed</span>
-                            <span>Base price: {p.basePrice} KWD</span>
-                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -553,7 +661,8 @@ export default function AdminPage() {
                 )}
               </div>
             )}
-            {/* Products Tab */}
+
+            {/* Products Tab — with Edit & Delete */}
             {tab === "products" && (
               <div className="space-y-4">
                 <div className="text-sm text-gray-500 mb-2">{products.length} products total</div>
@@ -583,6 +692,24 @@ export default function AdminPage() {
                           </div>
                           {p.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{p.description}</p>}
                           <span className="text-xs text-gray-400 mt-2 block"><Clock className="w-3 h-3 inline -mt-0.5 me-1" />{formatDate(p.createdAt)}</span>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => setEditProduct({ ...p })}
+                            className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-xl hover:bg-purple-100 transition-all"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete product "${p.title}"?`)) {
+                                adminAction("deleteProduct", p.id, "");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-xl hover:bg-red-100 transition-all"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -623,6 +750,176 @@ export default function AdminPage() {
                 onClick={() => setPasswordModal(null)}
                 className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
               >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Provider Modal */}
+      {editProvider && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 overflow-y-auto py-8">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Provider</h3>
+              <button onClick={() => setEditProvider(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Business Name</label>
+                <input type="text" value={editProvider.businessName} onChange={(e) => setEditProvider({ ...editProvider, businessName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+                <textarea value={editProvider.description} onChange={(e) => setEditProvider({ ...editProvider, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows={3} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Categories</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["pool", "fountain", "fish"].map((cat) => {
+                      const selected = (editProvider.categories || "").split(",").includes(cat);
+                      return (
+                        <button key={cat} type="button" onClick={() => {
+                          const cats = (editProvider.categories || "").split(",").filter(Boolean);
+                          const newCats = selected ? cats.filter(c => c !== cat) : [...cats, cat];
+                          setEditProvider({ ...editProvider, categories: newCats.join(",") });
+                        }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${selected ? "bg-cyan-50 border-cyan-300 text-cyan-700" : "bg-white border-gray-200 text-gray-500"}`}>
+                          {catLabel(cat)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Governorate</label>
+                  <select value={editProvider.governorate} onChange={(e) => setEditProvider({ ...editProvider, governorate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm">
+                    <option value="">Select...</option>
+                    {["Hawalli", "Capital", "Farwaniya", "Ahmadi", "Jahra", "Mubarak Al-Kabeer"].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
+                  <input type="text" value={editProvider.location} onChange={(e) => setEditProvider({ ...editProvider, location: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="e.g., Salmiya, Hawalli" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">WhatsApp Number</label>
+                  <input type="text" value={editProvider.whatsappNumber} onChange={(e) => setEditProvider({ ...editProvider, whatsappNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="96512345678" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Base Price (KWD)</label>
+                  <input type="number" value={editProvider.basePrice} onChange={(e) => setEditProvider({ ...editProvider, basePrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!editProvider.isVerified} onChange={(e) => setEditProvider({ ...editProvider, isVerified: e.target.checked ? 1 : 0 })}
+                      className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                    <span className="text-sm font-medium text-gray-700">Verified</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={async () => {
+                  await adminActionObj({
+                    action: "updateProvider",
+                    id: editProvider.id,
+                    businessName: editProvider.businessName,
+                    description: editProvider.description,
+                    categories: editProvider.categories,
+                    governorate: editProvider.governorate,
+                    location: editProvider.location,
+                    whatsappNumber: editProvider.whatsappNumber,
+                    basePrice: editProvider.basePrice,
+                    isVerified: !!editProvider.isVerified,
+                  });
+                  setEditProvider(null);
+                  alert("Provider updated!");
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-all"
+              >
+                <Save className="w-4 h-4" /> Save Changes
+              </button>
+              <button onClick={() => setEditProvider(null)}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {editProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Product</h3>
+              <button onClick={() => setEditProduct(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Title</label>
+                <input type="text" value={editProduct.title} onChange={(e) => setEditProduct({ ...editProduct, title: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+                <textarea value={editProduct.description} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows={3} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                  <select value={editProduct.category} onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm">
+                    <option value="pool">Pools</option>
+                    <option value="fountain">Fountains</option>
+                    <option value="fish">Fish Pools</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Price (KWD)</label>
+                  <input type="text" value={editProduct.price} onChange={(e) => setEditProduct({ ...editProduct, price: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={async () => {
+                  await adminActionObj({
+                    action: "updateProduct",
+                    id: editProduct.id,
+                    title: editProduct.title,
+                    description: editProduct.description,
+                    category: editProduct.category,
+                    price: editProduct.price,
+                  });
+                  setEditProduct(null);
+                  alert("Product updated!");
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-all"
+              >
+                <Save className="w-4 h-4" /> Save
+              </button>
+              <button onClick={() => setEditProduct(null)}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all">
                 Cancel
               </button>
             </div>

@@ -46,6 +46,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    if (section === "providers") {
+      const result = await db.execute(
+        `SELECT id, name, phone, role, businessName, categories, description, governorate, location, whatsappNumber, basePrice, image, isVerified, createdAt FROM User WHERE role = 'partner' ORDER BY createdAt DESC`
+      );
+      return NextResponse.json(result.rows);
+    }
+
     if (section === "users") {
       const result = await db.execute(
         "SELECT id, name, phone, role, businessName, categories, createdAt FROM User ORDER BY createdAt DESC"
@@ -92,7 +99,8 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
-    const { action, id, value } = await req.json();
+    const body = await req.json();
+    const { action, id, value } = body;
     const db = await ensureDb();
 
     if (action === "updateRole") {
@@ -145,6 +153,36 @@ export async function PATCH(req: NextRequest) {
       await db.execute({
         sql: "UPDATE BusinessRegistration SET status = ? WHERE id = ?",
         args: [value, id],
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "updateProvider") {
+      const { businessName, description, categories, governorate, location, whatsappNumber, basePrice, isVerified } = body;
+      await db.execute({
+        sql: `UPDATE User SET businessName = ?, description = ?, categories = ?, governorate = ?, location = ?, whatsappNumber = ?, basePrice = ?, isVerified = ? WHERE id = ? AND role = 'partner'`,
+        args: [
+          businessName || "", description || "", categories || "",
+          governorate || "", location || "", whatsappNumber || "",
+          basePrice || 0, isVerified ? 1 : 0, id,
+        ],
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "updateProduct") {
+      const { title, description: prodDesc, category, price } = body;
+      await db.execute({
+        sql: "UPDATE PartnerProduct SET title = ?, description = ?, category = ?, price = ? WHERE id = ?",
+        args: [title || "", prodDesc || "", category || "", price || "", id],
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "deleteProduct") {
+      await db.execute({
+        sql: "DELETE FROM PartnerProduct WHERE id = ?",
+        args: [id],
       });
       return NextResponse.json({ success: true });
     }
